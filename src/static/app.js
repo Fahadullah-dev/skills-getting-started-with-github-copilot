@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Function to fetch activities from API
   async function fetchActivities() {
     try {
-      const response = await fetch("/activities");
+      const response = await fetch("/activities", { cache: 'no-store' });
       const activities = await response.json();
 
       // Clear loading message and select options
@@ -51,10 +51,39 @@ document.addEventListener("DOMContentLoaded", () => {
             li.innerHTML = `
               <span class="avatar">${getInitials(participant)}</span>
               <span class="participant-name">${participant}</span>
+              <button class="delete-btn" title="Remove participant" data-activity="${name}" data-email="${participant}">
+                <img src="static/delete.svg" alt="Delete" />
+              </button>
             `;
             ul.appendChild(li);
           });
           participantsSection.appendChild(ul);
+
+          // Add delete event listeners
+          setTimeout(() => {
+            ul.querySelectorAll('.delete-btn').forEach(btn => {
+              btn.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const activity = btn.getAttribute('data-activity');
+                const email = btn.getAttribute('data-email');
+                if (confirm(`Remove ${email} from ${activity}?`)) {
+                  try {
+                    const response = await fetch(`/activities/${encodeURIComponent(activity)}/unregister?email=${encodeURIComponent(email)}`, {
+                      method: 'POST',
+                    });
+                    const result = await response.json();
+                    if (response.ok) {
+                      await fetchActivities();
+                    } else {
+                      alert(result.detail || 'Failed to remove participant.');
+                    }
+                  } catch (err) {
+                    alert('Error removing participant.');
+                  }
+                }
+              });
+            });
+          }, 0);
         }
 
         activityCard.innerHTML = `
@@ -102,7 +131,7 @@ document.addEventListener("DOMContentLoaded", () => {
         signupForm.reset();
 
         // Refresh activities to show updated participants
-        fetchActivities();
+        await fetchActivities();
       } else {
         messageDiv.textContent = result.detail || "An error occurred";
         messageDiv.className = "message error";
